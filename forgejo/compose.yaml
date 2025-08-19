@@ -10,6 +10,7 @@ services:
       - FORGEJO__database__NAME=forgejo
       - FORGEJO__database__USER=forgejo
       - FORGEJO__database__PASSWD=${FORGEJO_DATABASE_PASSWORD}
+      - GNUPGHOME=/data/gitea/home/.gnupg
     volumes:
       # replace the left-hand side from the ':' with your own path
       - /mnt/user/appdata/forgejo/data:/data
