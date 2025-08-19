@@ -1,0 +1,57 @@
+services:
+  server:
+    image: codeberg.org/forgejo/forgejo:12.0.1@sha256:f5ee3fc67479c4015002b6b756ad7980cd8642f45376fc9cd073969c3292530b
+    container_name: forgejo-server
+    restart: always
+    environment:
+      - TZ=America/Los_Angeles
+      - FORGEJO__database__DB_TYPE=postgres
+      - FORGEJO__database__HOST=database:5432
+      - FORGEJO__database__NAME=forgejo
+      - FORGEJO__database__USER=forgejo
+      - FORGEJO__database__PASSWD=${FORGEJO_DATABASE_PASSWORD}
+    volumes:
+      # replace the left-hand side from the ':' with your own path
+      - /mnt/user/appdata/forgejo/data:/data
+    ports:
+      - 3205:3000
+    depends_on:
+      - database
+
+  database:
+    image: postgres:17.5@sha256:864831322bf2520e7d03d899b01b542de6de9ece6fe29c89f19dc5e1d5568ccf
+    container_name: forgejo-database
+    restart: always
+    environment:
+      - POSTGRES_DB=forgejo
+      - POSTGRES_USER=forgejo
+      - POSTGRES_PASSWORD=${FORGEJO_DATABASE_PASSWORD}
+    volumes:
+      # replace the left-hand side from the ':' with your own path
+      - /mnt/user/appdata/forgejo/database:/var/lib/postgresql/data
+
+  dind:
+    image: docker:28.3.3-dind@sha256:c0872aae4791ff427e6eda52769afa04f17b5cf756f8267e0d52774c99d5c9de
+    container_name: forgejo-dind
+    privileged: true
+    restart: unless-stopped
+    command: ["dockerd", "-H", "tcp://0.0.0.0:2375", "--tls=false"]
+
+  runner:
+    image: code.forgejo.org/forgejo/runner:9.0.3@sha256:9ae7e65c14e7d49549432cbbbb2ed95e5e04ede234feb28bfd70a2dc04385263
+    links:
+      - dind
+    depends_on:
+      dind:
+        condition: service_started
+    container_name: forgejo-runner
+    user: 1000:1000 # replace this with the UUID:GUID of the user you want to run the runner as
+    environment:
+      DOCKER_HOST: tcp://dind:2375
+    volumes:
+      # replace the left-hand side from the ':' with your own path
+      - /mnt/user/appdata/forgejo/runner/data:/data
+      - /mnt/user/appdata/forgejo/runner/config.yaml:/config.yaml
+    restart: unless-stopped
+    # command: '/bin/sh -c "while : ; do sleep 1 ; done ;"'
+    command: '/bin/sh -c "sleep 5; forgejo-runner daemon --config /config.yaml"'
